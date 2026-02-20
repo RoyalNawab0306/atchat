@@ -1,4 +1,7 @@
 <?php
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 
@@ -26,4 +29,5 @@ $response = curl_exec($ch);
 curl_close($ch);
 
 echo $response;
+
 ?>
