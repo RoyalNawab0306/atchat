@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chatting | At Chat</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #6366f1; --bg: #ffffff; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--primary); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Header */
+        .header { padding: 40px 20px 20px; display: flex; align-items: center; color: white; gap: 15px; flex-shrink: 0; }
+        .back-btn { font-size: 20px; cursor: pointer; padding: 5px; }
+        .target-avatar { width: 45px; height: 45px; border-radius: 15px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+        .user-info { flex: 1; }
+        .user-info b { display: block; font-size: 16px; }
+        .user-info span { font-size: 12px; opacity: 0.8; }
+
+        /* Chat Area */
+        .chat-area { flex: 1; background: var(--bg); border-radius: 40px 40px 0 0; padding: 30px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        
+        .bubble { max-width: 80%; padding: 14px 18px; border-radius: 22px; font-size: 15px; line-height: 1.4; position: relative; }
+        .received { align-self: flex-start; background: #f1f5f9; color: #1e293b; border-bottom-left-radius: 5px; }
+        .sent { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 5px; box-shadow: 0 4px 12px rgba(99,102,241,0.2); }
+        
+        .msg-time { font-size: 10px; margin-top: 5px; display: block; opacity: 0.6; text-align: right; }
+
+        /* Input Bar */
+        .input-bar { background: white; padding: 15px 20px calc(15px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        .input-container { flex: 1; background: #f8fafc; border-radius: 20px; padding: 12px 18px; display: flex; align-items: center; gap: 10px; border: 1px solid #f1f5f9; }
+        .input-container input { border: none; background: none; outline: none; width: 100%; font-size: 15px; color: #1e293b; }
+        
+        .send-btn { background: var(--primary); color: white; border: none; width: 50px; height: 50px; border-radius: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .send-btn:active { transform: scale(0.9); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <i class="fa-solid fa-chevron-left back-btn" onclick="location.href='chat.html'"></i>
+    <div id="target-avatar" class="target-avatar">?</div>
+    <div class="user-info">
+        <b id="target-name">Loading...</b>
+        <span id="target-status">online</span>
+    </div>
+    <div style="display: flex; gap: 20px;">
+        <i class="fa-solid fa-video" onclick="location.href='calling.html'"></i>
+        <i class="fa-solid fa-phone" onclick="location.href='calling.html'"></i>
+    </div>
+</div>
+
+<div class="chat-area" id="chat-box">
+    <p id="empty-hint" style="text-align:center; color:#94a3b8; margin-top:50%;">No messages yet. Say hi!</p>
+</div>
+
+<div class="input-bar">
+    <div class="input-container">
+        <i class="fa-regular fa-face-smile" style="color:#94a3b8"></i>
+        <input type="text" id="msgInput" placeholder="Write a message..." autocomplete="off">
+        <i class="fa-solid fa-paperclip" style="color:#94a3b8"></i>
+    </div>
+    <button class="send-btn" onclick="sendMessage()">
+        <i class="fa-solid fa-paper-plane"></i>
+    </button>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzPyWTkn5L94I9PJ5KM_JNonvb8dOTpEA4tbqKC7d2j8I10W7xMsHHeOCroXcimWsy6jQ/exec";
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+    const targetUser = JSON.parse(localStorage.getItem("selectedUser"));
+
+    if(!currentUser || !targetUser) location.replace("chat.html");
+
+    // UI Initialization
+    document.getElementById('target-name').innerText = targetUser.name;
+    const av = document.getElementById('target-avatar');
+    av.innerText = targetUser.name[0].toUpperCase();
+    av.style.background = `hsl(${(targetUser.user_id * 137) % 360}, 60%, 55%)`;
+
+    async function loadMessages() {
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    action: "getMessages",
+                    sender_id: currentUser.user_id,
+                    receiver_id: targetUser.user_id
+                })
+            });
+            const data = await res.json();
+            if(data.status === "success" && data.messages.length > 0) {
+                renderMessages(data.messages);
+            }
+        } catch(e) { console.error("Load Error"); }
+    }
+
+    function renderMessages(msgs) {
+        const box = document.getElementById("chat-box");
+        const hint = document.getElementById("empty-hint");
+        if(hint) hint.remove();
+
+        box.innerHTML = msgs.map(m => {
+            const isSent = m.sender_id == currentUser.user_id;
+            return `
+                <div class="bubble ${isSent ? 'sent' : 'received'}">
+                    ${m.message}
+                    <span class="msg-time">${m.time || ''}</span>
+                </div>
+            `;
+        }).join('');
+        box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById("msgInput");
+        const msg = input.value.trim();
+        if(!msg) return;
+
+        // Optimistic UI update
+        const box = document.getElementById("chat-box");
+        const hint = document.getElementById("empty-hint");
+        if(hint) hint.remove();
+        
+        box.innerHTML += `<div class="bubble sent">${msg}<span class="msg-time">sending...</span></div>`;
+        box.scrollTop = box.scrollHeight;
+        input.value = "";
+
+        try {
+            await fetch(API_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    action: "sendMessage",
+                    sender_id: currentUser.user_id,
+                    receiver_id: targetUser.user_id,
+                    message: msg
+                })
+            });
+            loadMessages();
+        } catch(e) { alert("Message failed to send"); }
+    }
+
+    // Auto Refresh & Input Event
+    document.getElementById("msgInput").addEventListener("keypress", (e) => {
+        if(e.key === "Enter") sendMessage();
+    });
+
+    setInterval(loadMessages, 3000);
+    loadMessages();
+</script>
+
+</body>
+</html>

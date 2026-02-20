@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calls</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://calling-server-k3ja.onrender.com/socket.io/socket.io.js"></script>
+
+<style>
+:root{
+    --primary:#5b5df0;
+    --bg:#f4f7ff;
+}
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Segoe UI',sans-serif;
+}
+body{
+    background:var(--bg);
+    min-height:100vh;
+    padding-bottom:120px;
+}
+.header{
+    height:80px;
+    background:linear-gradient(135deg,var(--primary),#7c83ff);
+    border-radius:0 0 30px 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:20px;
+    font-weight:600;
+}
+.calls-container{
+    margin:20px;
+}
+.call-item{
+    background:#fff;
+    padding:15px;
+    border-radius:20px;
+    margin-bottom:15px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    box-shadow:0 8px 20px rgba(0,0,0,0.05);
+}
+.call-left{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+.avatar{
+    width:55px;
+    height:55px;
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-weight:bold;
+    font-size:18px;
+}
+.call-info b{
+    display:block;
+    font-size:15px;
+}
+.call-info span{
+    font-size:12px;
+    color:#8c95a5;
+}
+.call-icon{
+    font-size:18px;
+    color:var(--primary);
+    cursor:pointer;
+}
+.nav-bar{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    width:90%;
+    background:#111827;
+    border-radius:25px;
+    padding:14px;
+    display:flex;
+    justify-content:space-around;
+}
+.nav-btn{
+    background:none;
+    border:none;
+    color:#6b7280;
+    font-size:20px;
+    cursor:pointer;
+}
+.nav-btn.active{
+    color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    Calls
+</div>
+
+<div class="calls-container" id="callsList"></div>
+
+<div class="nav-bar">
+    <button class="nav-btn" onclick="location.href='chat.html'">
+        <i class="fa-solid fa-comment-dots"></i>
+    </button>
+    <button class="nav-btn active">
+        <i class="fa-solid fa-phone"></i>
+    </button>
+    <button class="nav-btn" onclick="location.href='profile.html'">
+        <i class="fa-solid fa-user"></i>
+    </button>
+</div>
+
+<script>
+
+const SERVER_URL = "https://calling-server-k3ja.onrender.com";
+const socket = io(SERVER_URL);
+
+const user = JSON.parse(localStorage.getItem("user"));
+if(!user){
+    location.href="login.html";
+}
+
+socket.emit("join", user.user_id);
+
+let peerConnection;
+let localStream;
+
+const config = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+};
+
+const callsList = document.getElementById("callsList");
+loadCalls();
+
+/* Load Call History */
+function loadCalls(){
+    callsList.innerHTML="";
+    const storedCalls = JSON.parse(localStorage.getItem("calls")) || [];
+
+    storedCalls.forEach(call=>{
+        const div = document.createElement("div");
+        div.className="call-item";
+        const color = `hsl(${Math.floor(Math.random()*360)},60%,50%)`;
+
+        div.innerHTML=`
+            <div class="call-left">
+                <div class="avatar" style="background:${color}">
+                    ${call.name.charAt(0)}
+                </div>
+                <div class="call-info">
+                    <b>${call.name}</b>
+                    <span>${call.time}</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-phone call-icon"
+               onclick="startCall(${call.id},'${call.name}')"></i>
+        `;
+        callsList.appendChild(div);
+    });
+}
+
+/* Start Call */
+async function startCall(targetId,targetName){
+
+    peerConnection = new RTCPeerConnection(config);
+    localStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+    localStream.getTracks().forEach(track=>{
+        peerConnection.addTrack(track, localStream);
+    });
+
+    peerConnection.onicecandidate = event=>{
+        if(event.candidate){
+            socket.emit("ice-candidate",{
+                to:targetId,
+                candidate:event.candidate
+            });
+        }
+    };
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit("call-user",{
+        to:targetId,
+        from:user.user_id,
+        offer:offer
+    });
+
+    alert("Calling "+targetName);
+    saveCall(targetName,targetId);
+}
+
+/* Incoming Call */
+socket.on("incoming-call", async data=>{
+
+    const accept = confirm("Incoming call. Accept?");
+    if(!accept) return;
+
+    peerConnection = new RTCPeerConnection(config);
+    localStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+    localStream.getTracks().forEach(track=>{
+        peerConnection.addTrack(track, localStream);
+    });
+
+    await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(data.offer)
+    );
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    socket.emit("answer-call",{
+        to:data.from,
+        answer:answer
+    });
+
+    alert("Call Connected");
+});
+
+/* Call Answered */
+socket.on("call-answered", async data=>{
+    await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(data.answer)
+    );
+});
+
+/* ICE */
+socket.on("ice-candidate", async data=>{
+    if(peerConnection){
+        await peerConnection.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+        );
+    }
+});
+
+/* Save Call */
+function saveCall(name,id){
+    let calls = JSON.parse(localStorage.getItem("calls")) || [];
+    calls.unshift({
+        id:id,
+        name:name,
+        time:new Date().toLocaleString()
+    });
+    localStorage.setItem("calls",JSON.stringify(calls));
+    loadCalls();
+}
+
+</script>
+
+</body>
+</html>

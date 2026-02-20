@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+<style>
+:root{
+    --primary:#5b5df0;
+    --bg:#f4f7ff;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Segoe UI',sans-serif;
+}
+
+body{
+    background:var(--bg);
+    min-height:100vh;
+    padding-bottom:120px;
+}
+
+/* Header */
+.header{
+    height:80px;
+    background:linear-gradient(135deg,var(--primary),#7c83ff);
+    border-radius:0 0 30px 30px;
+    position:relative;
+}
+
+.back{
+    position:absolute;
+    top:25px;
+    left:20px;
+    color:#fff;
+    font-size:20px;
+    cursor:pointer;
+}
+
+/* Card */
+.card{
+    margin:-40px 20px 40px;
+    background:#fff;
+    border-radius:25px;
+    padding:30px 20px;
+    text-align:center;
+    box-shadow:0 15px 35px rgba(0,0,0,0.08);
+}
+
+/* Avatar */
+.avatar{
+    width:110px;
+    height:110px;
+    border-radius:25px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto 15px;
+    border:5px solid #fff;
+    box-shadow:0 8px 20px rgba(0,0,0,0.1);
+    color:#fff;
+    font-size:40px;
+    font-weight:bold;
+}
+
+/* Name & Phone */
+.name{
+    font-size:20px;
+    font-weight:600;
+}
+
+.phone{
+    color:#8c95a5;
+    margin-top:5px;
+    font-size:14px;
+}
+
+/* Stats */
+.stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin:25px 0;
+}
+
+.stat{
+    background:#f1f4ff;
+    padding:14px;
+    border-radius:15px;
+}
+
+.stat b{
+    font-size:16px;
+    display:block;
+}
+
+.stat span{
+    font-size:12px;
+    color:#8c95a5;
+}
+
+/* Menu */
+.menu{
+    text-align:left;
+}
+
+.item{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    padding:15px;
+    border-radius:15px;
+    margin-bottom:12px;
+    background:#fff;
+    border:1px solid #eef1ff;
+    cursor:pointer;
+}
+
+.item i{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    background:#eef1ff;
+    color:var(--primary);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.logout{
+    color:#e11d48;
+    border-color:#ffe4e6;
+}
+
+.logout i{
+    background:#ffe4e6;
+    color:#e11d48;
+}
+
+/* Bottom Nav */
+.nav-bar{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    width:90%;
+    background:#111827;
+    border-radius:25px;
+    padding:14px;
+    display:flex;
+    justify-content:space-around;
+    z-index:999;
+}
+
+.nav-btn{
+    background:none;
+    border:none;
+    color:#6b7280;
+    font-size:20px;
+    cursor:pointer;
+}
+
+.nav-btn.active{
+    color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <i class="fa-solid fa-chevron-left back" onclick="history.back()"></i>
+</div>
+
+<div class="card">
+
+    <div id="avatar" class="avatar"></div>
+
+    <div id="name" class="name"></div>
+    <div id="phone" class="phone"></div>
+
+    <div class="stats">
+        <div class="stat">
+            <b id="chats"></b>
+            <span>Chats</span>
+        </div>
+        <div class="stat">
+            <b id="calls"></b>
+            <span>Calls</span>
+        </div>
+    </div>
+
+    <div class="menu">
+        <div class="item">
+            <i class="fa-solid fa-bell"></i>
+            <b>Notifications</b>
+        </div>
+
+        <div class="item">
+            <i class="fa-solid fa-shield-halved"></i>
+            <b>Privacy & Security</b>
+        </div>
+
+        <div class="item logout" onclick="logout()">
+            <i class="fa-solid fa-power-off"></i>
+            <b>Logout</b>
+        </div>
+    </div>
+
+</div>
+
+<!-- Bottom Navigation -->
+<div class="nav-bar">
+    <button class="nav-btn" onclick="location.href='chat.html'">
+        <i class="fa-solid fa-comment-dots"></i>
+    </button>
+
+    <button class="nav-btn" onclick="location.href='calls.html'">
+        <i class="fa-solid fa-phone"></i>
+    </button>
+
+    <button class="nav-btn active">
+        <i class="fa-solid fa-user"></i>
+    </button>
+</div>
+
+<script>
+const user = JSON.parse(localStorage.getItem("user"));
+
+if(user){
+    document.getElementById("name").innerText = user.name;
+    document.getElementById("phone").innerText = "+91 " + user.phone;
+
+    const avatar = document.getElementById("avatar");
+    avatar.innerText = user.name.charAt(0).toUpperCase();
+    avatar.style.background = `hsl(${(user.user_id * 137) % 360}, 60%, 50%)`;
+
+    document.getElementById("chats").innerText = user.chats || "";
+    document.getElementById("calls").innerText = user.calls || "";
+}else{
+    location.href = "login.html";
+}
+
+function logout(){
+    localStorage.clear();
+    location.href="login.html";
+}
+</script>
+
+</body>
+</html>
